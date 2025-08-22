@@ -199,8 +199,15 @@ body {
   margin-bottom: 8px;
   font-weight: 600;
   color: #29292b;
-  font-size: 14px;
+  font-size: 12px;
   letter-spacing: 0.025em;
+}
+
+input.form-input {
+  border: 2px solid #cbcdcf; /* blue border */
+  border-radius: 6px;        /* rounded corners */
+  padding: 8px 12px;         /* spacing inside */
+  outline: none;             /* remove default focus outline */
 }
 
 .form-input {

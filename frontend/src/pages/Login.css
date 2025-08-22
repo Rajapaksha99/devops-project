@@ -214,8 +214,8 @@ label.form-label {
   border-radius: 12px;
   font-size: 16px;
   font-weight: 400;
-  background: #fff !important;
-  color: #374151 !important;
+  background: #030303 !important;
+  color: #f0f3f7 !important;
   transition: all 0.3s ease;
   position: relative;
 }
@@ -232,7 +232,8 @@ input[type="text"].form-input {
 /* Override any inherited input styles */
 .login-form input.form-input {
   color: #374151 !important;
-  background-color: #ffffff !important;
+  background-color: #f1f1f1 !important;
+  border: solid rgb(187, 184, 184) 1px;
 }
 
 /* Force text color for autofill states */
@@ -257,7 +258,7 @@ input[type="text"].form-input {
 }
 
 .form-input::placeholder {
-  color: #6b7280 !important;
+  color: #adb6b2 !important;
   font-weight: 400 !important;
   opacity: 1 !important;
 }
