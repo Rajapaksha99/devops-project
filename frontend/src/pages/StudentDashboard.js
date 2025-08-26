@@ -414,9 +414,9 @@ const StudentDashboard = () => {
             <div style={{ fontSize: '12px', backgroundColor: '#f5c6cb', padding: '8px', borderRadius: '3px', marginTop: '10px' }}>
               <strong>Database Issue:</strong>
               <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
-                <li>No servers found in your Serverip collection</li>
-                <li>Add servers to the database using admin panel</li>
-                <li>Check MongoDB connection and collection name</li>
+                
+                <li>Add servers using admin panel</li>
+             
               </ul>
             </div>
           )}
@@ -431,7 +431,7 @@ const StudentDashboard = () => {
           fontWeight: 'bold',
           color: '#495057'
         }}>
-          Select Server:
+          Select Server to Connect with it's terminal:
         </label>
         {loadingServers ? (
           <div style={{
@@ -487,7 +487,7 @@ const StudentDashboard = () => {
             fontWeight: 'bold',
             color: '#495057'
           }}>
-            SSH Username:
+            Server Username:
           </label>
           <input
             type="text"
@@ -512,7 +512,7 @@ const StudentDashboard = () => {
             fontWeight: 'bold',
             color: '#495057'
           }}>
-            SSH Password:
+            Server Password:
           </label>
           <input
             type="password"
@@ -560,7 +560,7 @@ const StudentDashboard = () => {
           }
         }}
       >
-        {isConnecting ? '🔄 Opening Terminal...' : '🖥️ Connect to Server Terminal'}
+        {isConnecting ? 'Opening Terminal...' : ' Connect to Server Terminal'}
       </button>
 
       {/* Server Info Card */}

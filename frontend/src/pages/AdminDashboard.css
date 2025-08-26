@@ -164,15 +164,26 @@
   font-size: 0.9rem;
 }
 
+/* Updated search bar - now positioned at the top of servers section */
+.servers-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  max-width: 1000px; /* Constrain the header width */
+}
+
 .search-bar {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 2rem;
+  flex: 1;
+  max-width: 400px; /* Limit search bar width */
 }
 
 .search-input {
-  flex: 1;
+  width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
@@ -180,6 +191,7 @@
   backdrop-filter: blur(10px);
   color: white;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 
 .search-input::placeholder {
@@ -192,6 +204,13 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.servers-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
 .content-grid {
   display: grid;
   gap: 1.5rem;
@@ -201,6 +220,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 1.5rem;
+  max-width: 1200px; /* Limit the overall grid width */
 }
 
 .server-card {
@@ -685,15 +705,26 @@
 
   .servers-grid {
     grid-template-columns: 1fr;
+    max-width: none; /* Remove width constraint on mobile */
   }
 
   .navigation-tabs {
     flex-wrap: wrap;
   }
 
-  .search-bar {
+  .servers-section-header {
     flex-direction: column;
     align-items: stretch;
+    max-width: none; /* Remove width constraint on mobile */
+  }
+
+  .search-bar {
+    max-width: none; /* Remove width constraint on mobile */
+  }
+
+  .servers-actions {
+    justify-content: center;
+    margin-top: 1rem;
   }
 }
 

@@ -91,7 +91,7 @@ const TerminalPage = () => {
     term.write(`🔗 Connecting to SSH server...\r\n`);
     term.write(`📡 Host: ${data.host}:${data.port || 22}\r\n`);
     term.write(`👤 User: ${data.username}\r\n`);
-    term.write(`🔐 Authenticating...\r\n\r\n`);
+    
 
     console.log("📤 Sending SSH connection data:", sshConnectionData);
 
@@ -188,8 +188,6 @@ const TerminalPage = () => {
       console.log("✅ GLOBAL SOCKET: Connected to terminal server");
       setIsConnected(true);
       setConnectionStatus("connected");
-      term.write(`✅ Socket connected to ${SERVER_URL}\r\n`);
-      term.write(`🔗 Establishing SSH connection...\r\n\r\n`);
       
       connectToSSHServer(socket, data, term);
     });
@@ -382,8 +380,7 @@ const TerminalPage = () => {
       globalTerminalInstance = term;
       terminalInstance.current = term;
       
-      term.write('🚀 GLOBAL TERMINAL: Initializing (ONCE)...\r\n');
-      term.write(`📡 Connecting to ${SERVER_URL}...\r\n\r\n`);
+      
     }
     
     // Clean up existing GLOBAL socket before creating new one

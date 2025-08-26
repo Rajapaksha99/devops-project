@@ -12,10 +12,11 @@ import { NodeSSH } from "node-ssh";
 import jwt from "jsonwebtoken";
 import Serverip from "./models/Serverip.js";
 
-// Import new models
+// Import models
 import User from "./models/User.js";
 import ServerSession from "./models/ServerSession.js";
 import Command from "./models/Command.js";
+import AllowedEmail from "./models/AllowedEmail.js";
 
 dotenv.config();
 
@@ -31,11 +32,592 @@ mongoose.connect(process.env.MONGODB_URL, {
 .then(() => console.log("MongoDB connected"))
 .catch(err => console.log(err));
 
+// Auth middleware for admin routes
+const authenticateAdmin = (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Access denied. No token provided.' 
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Admin role required.' 
+      });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ 
+      success: false, 
+      message: 'Invalid token.' 
+    });
+  }
+};
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Server Management Routes
+// ===== STUDENT REGISTRATION WITH ALLOWED EMAIL VALIDATION =====
+
+// Student Registration with AllowedEmail validation
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, registered_id, password } = req.body;
+
+    console.log('Registration attempt:', { name, email, registered_id });
+
+    // Validation - check required fields
+    if (!name || !email || !registered_id || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required: name, email, registered_id, and password"
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address"
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long"
+      });
+    }
+
+    // CRITICAL: Check if email and registered_id combination exists in AllowedEmail collection
+    const allowedStudent = await AllowedEmail.findOne({
+      email: email.toLowerCase().trim(),
+      registered_id: registered_id.trim()
+    });
+
+    if (!allowedStudent) {
+      console.log('Registration denied: Email and Student ID combination not found in allowed list');
+      return res.status(403).json({
+        success: false,
+        message: "Registration denied. Your email and student ID combination is not authorized for registration. Please contact your administrator."
+      });
+    }
+
+    // Check if user already exists in Users collection
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { registered_id: registered_id.trim() }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: existingUser.email === email.toLowerCase().trim() 
+          ? "Email already registered" 
+          : "Student ID already registered"
+      });
+    }
+
+    // Hash password
+    const bcrypt = await import('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create new user with data from AllowedEmail
+    const newUser = new User({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      registered_id: registered_id.trim(),
+      password: hashedPassword,
+      role: allowedStudent.role || 'student' // Use role from AllowedEmail
+    });
+
+    await newUser.save();
+
+    console.log(`New user registered successfully: ${newUser.email} (ID: ${newUser.registered_id})`);
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: newUser._id, 
+        email: newUser.email, 
+        role: newUser.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: "Registration successful! You can now log in to the system.",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        registered_id: newUser.registered_id,
+        role: newUser.role
+      },
+      token: token
+    });
+
+  } catch (error) {
+    console.error("Registration error:", error);
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message = field === 'email' 
+        ? 'Email already registered' 
+        : 'Student ID already registered';
+      
+      return res.status(400).json({
+        success: false,
+        message: message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Registration failed due to server error. Please try again.",
+      error: error.message
+    });
+  }
+});
+
+// Student Login
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    console.log('Login attempt for:', email);
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required"
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ 
+      email: email.toLowerCase().trim() 
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    // Verify password
+    const bcrypt = await import('bcrypt');
+    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role,
+        name: user.name,
+        registered_id: user.registered_id
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log(`User logged in successfully: ${user.email}`);
+
+    // Return success response
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        registered_id: user.registered_id,
+        role: user.role
+      },
+      token: token
+    });
+
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Login failed due to server error. Please try again.",
+      error: error.message
+    });
+  }
+});
+
+// ===== ALLOWED EMAIL MANAGEMENT ENDPOINTS =====
+
+// Get all allowed emails (students)
+app.get("/api/admin/allowed-emails", authenticateAdmin, async (req, res) => {
+  try {
+    console.log('Fetching allowed emails...');
+    
+    const allowedEmails = await AllowedEmail.find()
+      .sort({ createdAt: -1 });
+    
+    console.log(`Found ${allowedEmails.length} allowed emails`);
+    
+    res.json(allowedEmails);
+  } catch (error) {
+    console.error("Error fetching allowed emails:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch allowed emails",
+      error: error.message 
+    });
+  }
+});
+
+// Add new student to allowed emails
+app.post("/api/admin/students/allowed", authenticateAdmin, async (req, res) => {
+  try {
+    const { name, email, registered_id, role = 'student' } = req.body;
+
+    console.log('Adding new allowed student:', { name, email, registered_id, role });
+
+    // Validation
+    if (!name || !email || !registered_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and registered ID are required"
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address"
+      });
+    }
+
+    // Check if email already exists
+    const existingEmail = await AllowedEmail.findOne({ 
+      email: email.toLowerCase().trim() 
+    });
+    
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists in allowed list"
+      });
+    }
+
+    // Check if registered_id already exists
+    const existingId = await AllowedEmail.findOne({ 
+      registered_id: registered_id.trim() 
+    });
+    
+    if (existingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Student ID already exists in allowed list"
+      });
+    }
+
+    // Create new allowed email entry
+    const newAllowedEmail = new AllowedEmail({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      registered_id: registered_id.trim(),
+      role: role
+    });
+
+    await newAllowedEmail.save();
+
+    console.log('Successfully added new allowed student:', newAllowedEmail);
+
+    res.status(201).json({
+      success: true,
+      message: "Student added successfully to allowed list!",
+      data: newAllowedEmail
+    });
+
+  } catch (error) {
+    console.error("Error adding allowed student:", error);
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message = field === 'email' 
+        ? 'Email already exists in allowed list' 
+        : 'Student ID already exists in allowed list';
+      
+      return res.status(400).json({
+        success: false,
+        message: message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to add student to allowed list",
+      error: error.message
+    });
+  }
+});
+
+// Update allowed student
+app.put("/api/admin/students/allowed/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, registered_id, role } = req.body;
+
+    console.log('Updating allowed student:', { id, name, email, registered_id, role });
+
+    // Validation
+    if (!name || !email || !registered_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and registered ID are required"
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address"
+      });
+    }
+
+    // Check if email already exists (excluding current record)
+    const existingEmail = await AllowedEmail.findOne({ 
+      email: email.toLowerCase().trim(),
+      _id: { $ne: id }
+    });
+    
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists in allowed list"
+      });
+    }
+
+    // Check if registered_id already exists (excluding current record)
+    const existingId = await AllowedEmail.findOne({ 
+      registered_id: registered_id.trim(),
+      _id: { $ne: id }
+    });
+    
+    if (existingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Student ID already exists in allowed list"
+      });
+    }
+
+    // Update the record
+    const updatedStudent = await AllowedEmail.findByIdAndUpdate(
+      id,
+      {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        registered_id: registered_id.trim(),
+        role: role || 'student'
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedStudent) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found"
+      });
+    }
+
+    console.log('Successfully updated allowed student:', updatedStudent);
+
+    res.json({
+      success: true,
+      message: "Student updated successfully",
+      data: updatedStudent
+    });
+
+  } catch (error) {
+    console.error("Error updating allowed student:", error);
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message = field === 'email' 
+        ? 'Email already exists in allowed list' 
+        : 'Student ID already exists in allowed list';
+      
+      return res.status(400).json({
+        success: false,
+        message: message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update student",
+      error: error.message
+    });
+  }
+});
+
+// Delete allowed student
+app.delete("/api/admin/students/allowed/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log('Deleting allowed student with ID:', id);
+
+    // Validate the ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid student ID format"
+      });
+    }
+
+    // Find and delete the student
+    const deletedStudent = await AllowedEmail.findByIdAndDelete(id);
+
+    if (!deletedStudent) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found in allowed list"
+      });
+    }
+
+    console.log('Successfully deleted allowed student:', deletedStudent.email);
+
+    res.json({
+      success: true,
+      message: `Student "${deletedStudent.email}" removed from allowed list successfully!`,
+      data: deletedStudent
+    });
+
+  } catch (error) {
+    console.error("Error deleting allowed student:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete student from allowed list",
+      error: error.message
+    });
+  }
+});
+
+// Get registered students (from Users collection)
+app.get("/api/admin/students", authenticateAdmin, async (req, res) => {
+  try {
+    console.log('Fetching registered students...');
+    
+    // Fetch users with role 'student' and include their session statistics
+    const students = await User.find({ role: 'student' })
+      .select('name email registered_id created_at updated_at')
+      .sort({ created_at: -1 });
+
+    // Get session statistics for each student
+    const studentsWithStats = await Promise.all(
+      students.map(async (student) => {
+        try {
+          // Get session statistics
+          const totalSessions = await ServerSession.countDocuments({ 
+            user_id: student._id 
+          });
+          
+          const activeSessions = await ServerSession.countDocuments({ 
+            user_id: student._id, 
+            status: 'active' 
+          });
+          
+          // Calculate total duration
+          const sessions = await ServerSession.find({ 
+            user_id: student._id, 
+            session_duration: { $exists: true, $ne: null } 
+          }).select('session_duration');
+          
+          const totalDuration = sessions.reduce((sum, session) => 
+            sum + (session.session_duration || 0), 0
+          );
+          
+          // Get last activity
+          const lastSession = await ServerSession.findOne({ 
+            user_id: student._id 
+          }).sort({ login_time: -1 }).select('logout_time login_time');
+          
+          const lastActivity = lastSession 
+            ? (lastSession.logout_time || lastSession.login_time) 
+            : null;
+
+          return {
+            ...student.toObject(),
+            id: student._id, // Add id field for compatibility
+            statistics: {
+              total_sessions: totalSessions,
+              active_sessions: activeSessions,
+              total_duration: totalDuration,
+              last_activity: lastActivity
+            }
+          };
+        } catch (err) {
+          console.error(`Error getting stats for student ${student._id}:`, err);
+          return {
+            ...student.toObject(),
+            id: student._id,
+            statistics: {
+              total_sessions: 0,
+              active_sessions: 0,
+              total_duration: 0,
+              last_activity: null
+            }
+          };
+        }
+      })
+    );
+
+    console.log(`Found ${studentsWithStats.length} registered students`);
+
+    res.json(studentsWithStats);
+  } catch (error) {
+    console.error("Error fetching registered students:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch registered students",
+      error: error.message 
+    });
+  }
+});
+
+// ===== EXISTING SERVER MANAGEMENT ROUTES =====
+
 // Get all active servers (updated to work with StudentDashboard)
 app.get("/api/servers", async (req, res) => {
   try {

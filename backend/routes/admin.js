@@ -183,7 +183,7 @@ router.get("/sessions/:sessionId", verifyAdmin, async (req, res) => {
   }
 });
 
-// Get all students
+// Get all students (registered users)
 router.get("/students", verifyAdmin, async (req, res) => {
   try {
     const students = await User.find({ role: "student" }).select("-password");
@@ -357,17 +357,197 @@ router.get("/dashboard/stats", verifyAdmin, async (req, res) => {
   }
 });
 
-// Add allowed email for student registration
+// ==================== ENHANCED STUDENT MANAGEMENT ROUTES ====================
+
+// Add student to AllowedEmail collection (enhanced with name and registered_id)
+router.post("/students/allowed", verifyAdmin, async (req, res) => {
+  try {
+    const { name, email, registered_id, role = "student" } = req.body;
+
+    if (!name || !email || !registered_id) {
+      return res.status(400).json({ 
+        message: "Name, email, and registered ID are required" 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        message: "Please enter a valid email address" 
+      });
+    }
+
+    // Check if email already exists in AllowedEmail
+    const existingEmail = await AllowedEmail.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ 
+        message: "Email already exists in allowed list" 
+      });
+    }
+
+    // Check if registered_id already exists in AllowedEmail
+    const existingId = await AllowedEmail.findOne({ registered_id });
+    if (existingId) {
+      return res.status(400).json({ 
+        message: "Registered ID already exists in allowed list" 
+      });
+    }
+
+    // Check if user is already registered
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { registered_id }] 
+    });
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: "Student with this email or registered ID is already registered" 
+      });
+    }
+
+    const allowedStudent = new AllowedEmail({ 
+      name, 
+      email, 
+      registered_id, 
+      role 
+    });
+    
+    await allowedStudent.save();
+
+    res.status(201).json({
+      message: "Student added to allowed list successfully",
+      student: allowedStudent
+    });
+  } catch (error) {
+    console.error("Error adding student to allowed list:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all allowed emails (students not yet registered)
+router.get("/allowed-emails", verifyAdmin, async (req, res) => {
+  try {
+    const allowedEmails = await AllowedEmail.find().sort({ createdAt: -1 });
+    res.json(allowedEmails);
+  } catch (error) {
+    console.error("Error fetching allowed emails:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update student in AllowedEmail collection
+router.put("/students/allowed/:studentId", verifyAdmin, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { name, email, registered_id, role } = req.body;
+
+    if (!name || !email || !registered_id) {
+      return res.status(400).json({ 
+        message: "Name, email, and registered ID are required" 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        message: "Please enter a valid email address" 
+      });
+    }
+
+    // Check if email already exists (excluding current record)
+    const existingEmail = await AllowedEmail.findOne({ 
+      email, 
+      _id: { $ne: studentId } 
+    });
+    if (existingEmail) {
+      return res.status(400).json({ 
+        message: "Email already exists in allowed list" 
+      });
+    }
+
+    // Check if registered_id already exists (excluding current record)
+    const existingId = await AllowedEmail.findOne({ 
+      registered_id, 
+      _id: { $ne: studentId } 
+    });
+    if (existingId) {
+      return res.status(400).json({ 
+        message: "Registered ID already exists in allowed list" 
+      });
+    }
+
+    // Check if user is already registered with different email/id
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { registered_id }] 
+    });
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: "Student with this email or registered ID is already registered" 
+      });
+    }
+
+    const updatedStudent = await AllowedEmail.findByIdAndUpdate(
+      studentId,
+      { name, email, registered_id, role },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedStudent) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.json({
+      message: "Student updated successfully",
+      student: updatedStudent
+    });
+  } catch (error) {
+    console.error("Error updating student:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Remove student from AllowedEmail collection
+router.delete("/students/allowed/:studentId", verifyAdmin, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    const deletedStudent = await AllowedEmail.findByIdAndDelete(studentId);
+    if (!deletedStudent) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.json({ 
+      message: "Student removed from allowed list successfully",
+      deletedStudent: {
+        name: deletedStudent.name,
+        email: deletedStudent.email,
+        registered_id: deletedStudent.registered_id
+      }
+    });
+  } catch (error) {
+    console.error("Error removing student:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ==================== LEGACY ROUTES (maintained for compatibility) ====================
+
+// Add allowed email for student registration (legacy route)
 router.post("/allowed-emails", verifyAdmin, async (req, res) => {
   try {
-    const { email, role = "student" } = req.body;
+    const { email, role = "student", name, registered_id } = req.body;
 
     const existingEmail = await AllowedEmail.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({ message: "Email already in allowed list" });
     }
 
-    const allowedEmail = new AllowedEmail({ email, role });
+    const allowedEmail = new AllowedEmail({ 
+      email, 
+      role, 
+      name: name || null, 
+      registered_id: registered_id || null 
+    });
     await allowedEmail.save();
 
     res.status(201).json({
@@ -380,18 +560,7 @@ router.post("/allowed-emails", verifyAdmin, async (req, res) => {
   }
 });
 
-// Get all allowed emails
-router.get("/allowed-emails", verifyAdmin, async (req, res) => {
-  try {
-    const allowedEmails = await AllowedEmail.find().sort({ createdAt: -1 });
-    res.json(allowedEmails);
-  } catch (error) {
-    console.error("Error fetching allowed emails:", error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Remove allowed email
+// Remove allowed email (legacy route)
 router.delete("/allowed-emails/:emailId", verifyAdmin, async (req, res) => {
   try {
     const { emailId } = req.params;

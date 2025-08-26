@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import StudentManagement from './StudentManagement';
 import { 
   Users, 
   Server, 
@@ -23,12 +24,12 @@ import {
   X,
   Trash2
 } from 'lucide-react';
+
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [servers, setServers] = useState([]);
-  const [students, setStudents] = useState([]);
   const [selectedServer, setSelectedServer] = useState(null);
   const [serverSessions, setServerSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
   const [showAddServerModal, setShowAddServerModal] = useState(false);
   const [deletingServer, setDeletingServer] = useState(null);
   const [adminUser, setAdminUser] = useState(null);
+  
   const [newServerData, setNewServerData] = useState({
     name: '',
     ip: '',
@@ -83,21 +85,6 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching servers:', err);
-    }
-  }, []);
-
-  // Fetch students list
-  const fetchStudents = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/admin/students`, {
-        headers: getAuthHeaders()
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStudents(data);
-      }
-    } catch (err) {
-      console.error('Error fetching students:', err);
     }
   }, []);
 
@@ -244,13 +231,11 @@ const AdminDashboard = () => {
         // Refresh all data to ensure UI is consistent
         await Promise.all([
           fetchDashboardStats(),
-          fetchServers(),
-          fetchStudents()
+          fetchServers()
         ]);
 
         // Show success message
         setError('');
-        // You could add a success message here if needed
         
       } else {
         setError(data.error || 'Failed to delete server');
@@ -302,20 +287,23 @@ const AdminDashboard = () => {
 
   // Initial data load
   useEffect(() => {
-    fetchDashboardStats();
-    fetchServers();
-    fetchStudents();
-    fetchServerIPs();
-  }, [fetchDashboardStats, fetchServers, fetchStudents, fetchServerIPs]);
+    if (currentView !== 'students') {
+      fetchDashboardStats();
+      fetchServers();
+      fetchServerIPs();
+    }
+  }, [fetchDashboardStats, fetchServers, fetchServerIPs, currentView]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds (only when not in students view)
   useEffect(() => {
+    if (currentView === 'students') return;
+    
     const interval = setInterval(() => {
       fetchDashboardStats();
       fetchServers();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchDashboardStats, fetchServers]);
+  }, [fetchDashboardStats, fetchServers, currentView]);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -325,7 +313,6 @@ const AdminDashboard = () => {
       await Promise.all([
         fetchDashboardStats(),
         fetchServers(),
-        fetchStudents(),
         fetchServerIPs()
       ]);
       
@@ -391,12 +378,6 @@ const AdminDashboard = () => {
   const filteredServers = servers.filter(server => 
     server.server_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     server.server_ip?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredStudents = students.filter(student =>
-    student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.registered_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredServerIPs = serverIPs.filter(server => 
@@ -549,8 +530,8 @@ const AdminDashboard = () => {
         
         {loading ? (
           <div className="loading-spinner">
-            <RefreshCw size={24} className="animate-pulse" />
-            Loading sessions...
+            <RefreshCw size={8} className="animate-pulse" />
+    
           </div>
         ) : (
           <table className="table">
@@ -644,12 +625,7 @@ const AdminDashboard = () => {
                 <span className="info-label">Duration</span>
                 <span className="info-value">{formatDuration(sessionDetails.session_details.session_duration)}</span>
               </div>
-              <div className="info-item">
-                <span className="info-label">Status</span>
-                <span className={`status-badge ${sessionDetails.session_details.status === 'active' ? 'status-active' : 'status-disconnected'}`}>
-                  {sessionDetails.session_details.status}
-                </span>
-              </div>
+              
             </div>
           </div>
 
@@ -687,6 +663,7 @@ const AdminDashboard = () => {
   );
 
   const renderServerManagement = () => (
+
     <div className="content-grid">
       <div className="search-bar">
         <div style={{position: 'relative', flex: 1}}>
@@ -704,10 +681,7 @@ const AdminDashboard = () => {
           <Plus size={16} />
           Add Server
         </button>
-        <button className="btn btn-secondary" onClick={fetchServerIPs}>
-          <RefreshCw size={16} />
-          Refresh
-        </button>
+        
       </div>
 
       <div className="servers-grid">
@@ -886,67 +860,10 @@ const AdminDashboard = () => {
     </div>
   );
 
-  const renderStudents = () => (
-    <div className="content-grid">
-      <div className="search-bar">
-        <div style={{position: 'relative', flex: 1}}>
-          <Search size={20} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.6)'}} />
-          <input
-            type="text"
-            placeholder="Search students by name, email, or ID..."
-            className="search-input"
-            style={{paddingLeft: '44px'}}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button className="btn btn-primary" onClick={fetchStudents}>
-          <RefreshCw size={16} />
-          Refresh
-        </button>
-      </div>
-
-      <div className="session-table">
-        <div className="table-header">
-          <h3 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-            <Users size={20} />
-            Students ({filteredStudents.length})
-          </h3>
-        </div>
-        
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Student ID</th>
-              <th>Total Sessions</th>
-              <th>Active Sessions</th>
-              <th>Total Time</th>
-              <th>Last Activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.map((student) => (
-              <tr key={student.id}>
-                <td style={{fontWeight: '500'}}>{student.name}</td>
-                <td>{student.email}</td>
-                <td>{student.registered_id}</td>
-                <td>{student.statistics.total_sessions}</td>
-                <td>
-                  <span className={`status-badge ${student.statistics.active_sessions > 0 ? 'status-active' : 'status-disconnected'}`}>
-                    {student.statistics.active_sessions}
-                  </span>
-                </td>
-                <td>{formatDuration(student.statistics.total_duration)}</td>
-                <td>{formatDateTime(student.statistics.last_activity)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  // If students view is selected, render StudentManagement component
+ if (currentView === 'students') {
+  return <StudentManagement onBack={() => setCurrentView('overview')} />;
+}
 
   return (
     <div className="admin-dashboard">
@@ -1002,13 +919,7 @@ const AdminDashboard = () => {
             <BarChart3 size={16} />
             Overview
           </button>
-          <button 
-            className={`nav-tab ${currentView === 'servers' ? 'active' : ''}`}
-            onClick={() => setCurrentView('overview')}
-          >
-            <Server size={16} />
-            Servers
-          </button>
+          
           <button 
             className={`nav-tab ${currentView === 'server-management' ? 'active' : ''}`}
             onClick={() => setCurrentView('server-management')}
@@ -1021,7 +932,7 @@ const AdminDashboard = () => {
             onClick={() => setCurrentView('students')}
           >
             <Users size={16} />
-            Students
+            Student Management
           </button>
         </div>
 
@@ -1029,7 +940,6 @@ const AdminDashboard = () => {
         {currentView === 'servers' && renderServerSessions()}
         {currentView === 'session-details' && renderSessionDetails()}
         {currentView === 'server-management' && renderServerManagement()}
-        {currentView === 'students' && renderStudents()}
       </div>
     </div>
   );

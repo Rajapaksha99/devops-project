@@ -59,9 +59,9 @@ const Login = () => {
         <div className="login-header">
           <div className="brand-logo">
             <div className="logo-circl"></div>
-            <h1 className="brand-title">DevOpsHostLab</h1>
+            <h1 className="brand-title">SLT Server Lab</h1>
           </div>
-          <h2 className="login-title">Welcome Back</h2>
+          
         
         </div>
 
@@ -140,8 +140,8 @@ const Login = () => {
               </>
             ) : (
               <>
-                <span>Sign In</span>
-                <span className="button-arrow">→</span>
+                <span>Log In</span>
+                <span className="button-arrow"></span>
               </>
             )}
           </button>
