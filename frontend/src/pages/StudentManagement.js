@@ -35,7 +35,7 @@ const StudentManagement = ({ onBack }) => {
     role: 'student'
   });
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'http://172.184.216.215:5000/api';
   
   const getAuthHeaders = () => {
     // Try different possible token keys
@@ -475,7 +475,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g., John Doe"
+                  placeholder="Enter student name"
                   value={newStudentData.name}
                   onChange={(e) => setNewStudentData(prev => ({...prev, name: e.target.value}))}
                 />
@@ -486,7 +486,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="e.g., john.doe@university.edu"
+                  placeholder="Enter student email address"
                   value={newStudentData.email}
                   onChange={(e) => setNewStudentData(prev => ({...prev, email: e.target.value}))}
                 />
@@ -497,7 +497,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g., STU2024001"
+                  placeholder="Student ID"
                   value={newStudentData.registered_id}
                   onChange={(e) => setNewStudentData(prev => ({...prev, registered_id: e.target.value}))}
                 />
@@ -541,7 +541,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g., John Doe"
+                  placeholder=""
                   value={editingStudent.name || ''}
                   onChange={(e) => setEditingStudent(prev => ({...prev, name: e.target.value}))}
                 />
@@ -552,7 +552,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="e.g., john.doe@university.edu"
+                  placeholder="Enter student email address"
                   value={editingStudent.email || ''}
                   onChange={(e) => setEditingStudent(prev => ({...prev, email: e.target.value}))}
                 />
@@ -563,7 +563,7 @@ const StudentManagement = ({ onBack }) => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g., STU2024001"
+                  placeholder="Student ID"
                   value={editingStudent.registered_id || ''}
                   onChange={(e) => setEditingStudent(prev => ({...prev, registered_id: e.target.value}))}
                 />

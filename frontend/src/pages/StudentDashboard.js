@@ -46,8 +46,8 @@ const StudentDashboard = () => {
       // Determine the correct API base URL
       const getApiBaseUrl = () => {
         // If in development, use localhost:5000
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          return 'http://localhost:5000';
+        if (window.location.hostname === '172.184.216.215' || window.location.hostname === '127.0.0.1') {
+          return 'http://172.184.216.215:5000';
         }
         // If in production, assume same domain different port or same domain
         return window.location.origin.replace(':3000', ':5000');

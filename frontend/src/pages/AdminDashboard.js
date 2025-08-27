@@ -48,10 +48,10 @@ const AdminDashboard = () => {
     ip: '',
     port: 22,
     description: '',
-    max_connections: 100
+    max_connections: 20
   });
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'http://172.184.216.215:5000/api';
   
   const getAuthHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -176,7 +176,7 @@ const AdminDashboard = () => {
       
       if (response.ok) {
         setServerIPs(prev => [...prev, data.server]);
-        setNewServerData({ name: '', ip: '', port: 22, description: '', max_connections: 100 });
+        setNewServerData({ name: '', ip: '', port: 22, description: '', max_connections: 20 });
         setShowAddServerModal(false);
         setError('');
       } else {
@@ -789,7 +789,7 @@ const AdminDashboard = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g., Production Server 1"
+                placeholder="Server Name here"
                 value={newServerData.name}
                 onChange={(e) => setNewServerData(prev => ({...prev, name: e.target.value}))}
               />
@@ -800,7 +800,7 @@ const AdminDashboard = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g., 192.168.1.100"
+                placeholder="Server IP here"
                 value={newServerData.ip}
                 onChange={(e) => setNewServerData(prev => ({...prev, ip: e.target.value}))}
               />
@@ -822,9 +822,9 @@ const AdminDashboard = () => {
               <input
                 type="number"
                 className="form-input"
-                placeholder="100"
+                placeholder="20"
                 value={newServerData.max_connections}
-                onChange={(e) => setNewServerData(prev => ({...prev, max_connections: parseInt(e.target.value) || 100}))}
+                onChange={(e) => setNewServerData(prev => ({...prev, max_connections: parseInt(e.target.value) || 20}))}
               />
             </div>
 

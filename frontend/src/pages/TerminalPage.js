@@ -4,7 +4,7 @@ import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 import { FitAddon } from 'xterm-addon-fit';
 
-const SERVER_URL = "http://localhost:5000";
+const SERVER_URL = "http://172.184.216.215:5000";
 
 // GLOBAL SINGLETON PATTERN - Prevent multiple instances
 let globalTerminalInstance = null;

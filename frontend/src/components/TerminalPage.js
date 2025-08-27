@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 
-const SERVER_URL = "http://localhost:5000";
+const SERVER_URL = "http://172.184.216.215:5000";
 
 const TerminalPage = () => {
   const [socket, setSocket] = useState(null);
