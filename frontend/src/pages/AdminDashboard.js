@@ -51,7 +51,7 @@ const AdminDashboard = () => {
     max_connections: 20
   });
 
-  const API_BASE = 'http://172.184.216.215:5000/api';
+  const API_BASE = 'http://localhost:5000/api';
   
   const getAuthHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -870,7 +870,7 @@ const AdminDashboard = () => {
       <div className="dashboard-header">
         <h1 className="dashboard-title">
           <Shield size={28} />
-          Admin Dashboard
+          SLT Server Lab
         </h1>
         <div className="dashboard-controls">
           {adminUser && (
